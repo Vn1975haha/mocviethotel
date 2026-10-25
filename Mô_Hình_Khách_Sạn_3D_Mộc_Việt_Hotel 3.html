@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mộc Việt Hotel - Mô Hình 3D Hồ Bơi Sân Thượng & 50 Phòng</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls for Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b0f19;
+            color: #f8fafc;
+            overflow: hidden;
+            margin: 0;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(217, 119, 6, 0.25);
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(217, 119, 6, 0.4);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(217, 119, 6, 0.7);
+        }
+        .wood-glow {
+            box-shadow: 0 0 20px rgba(217, 119, 6, 0.25);
+        }
+    </style>
+</head>
+<body class="relative h-screen w-screen select-none">
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container" class="w-full h-full absolute inset-0"></div>
+
+    <!-- Top Navigation / Header -->
+    <header class="absolute top-4 left-4 right-4 flex justify-between items-center pointer-events-none z-10">
+        <div class="glass-panel px-5 py-3 rounded-2xl flex items-center gap-3.5 pointer-events-auto shadow-2xl wood-glow">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 flex items-center justify-center text-amber-100 font-bold text-2xl shadow-md border border-amber-400/40">
+                <i class="fa-solid fa-hotel"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-xl tracking-wide text-white flex items-center gap-2">
+                    MỘC VIỆT HOTEL
+                    <span class="text-xs bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full border border-amber-500/30">10 Tầng • 60 Phòng</span>
+                </h1>
+                <p class="text-xs text-amber-200/70">Mô hình 3D Hồ Bơi Sân Thượng & Bảng Cấu Trúc 60 Phòng NGHỈ</p>
+            </div>
+        </div>
+
+        <!-- Control Buttons Header -->
+        <div class="glass-panel p-1.5 rounded-2xl flex items-center gap-2 pointer-events-auto">
+            <button id="btn-daynight" class="px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30">
+                <i class="fa-solid fa-moon text-amber-300" id="icon-daynight"></i>
+                <span id="text-daynight">Chế độ Đêm / LED Lung Linh</span>
+            </button>
+            <button id="btn-explode" class="px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700">
+                <i class="fa-solid fa-layer-group text-amber-400"></i>
+                <span id="text-explode">Tách Dãn 10 Tầng (Exploded View)</span>
+            </button>
+            <button id="btn-reset" class="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition" title="Đặt lại góc nhìn">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Left Sidebar: 10 Floors Navigator & Room Summary Table -->
+    <aside class="absolute left-4 top-24 bottom-4 w-72 glass-panel rounded-2xl p-4 flex flex-col justify-between z-10 hidden md:flex">
+        <div>
+            <div class="flex items-center justify-between mb-3 px-1">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-building"></i> Danh Sách 10 Tầng
+                </h2>
+                <span class="text-[11px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/30">Tổng 60 Phòng</span>
+            </div>
+            <div class="space-y-1.5 max-h-[calc(100vh-380px)] overflow-y-auto pr-1" id="floor-list-container">
+                <!-- Dynamically populated floors -->
+            </div>
+        </div>
+
+        <!-- Room Types Breakdown Table (From User Request Image) -->
+        <div class="bg-slate-900/90 p-3 rounded-xl border border-amber-500/20 space-y-2 text-xs">
+            <div class="flex justify-between items-center pb-1.5 border-b border-slate-800 font-bold text-amber-400">
+                <span>Loại phòng</span>
+                <span>Số phòng</span>
+            </div>
+            <div class="space-y-1 text-slate-300 text-[11px]">
+                <div class="flex justify-between">
+                    <span>Single Room</span>
+                    <span class="font-semibold text-white">12</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Standard Room</span>
+                    <span class="font-semibold text-white">24</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Superior Room</span>
+                    <span class="font-semibold text-white">14</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Deluxe Room</span>
+                    <span class="font-semibold text-white">6</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Family Room</span>
+                    <span class="font-semibold text-white">4</span>
+                </div>
+            </div>
+            <div class="pt-2 border-t border-slate-800 flex justify-between items-center font-bold text-amber-300 text-xs">
+                <span>Tổng cộng:</span>
+                <span class="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">60 Phòng</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Right Panel: Floor Detail Inspector -->
+    <aside id="inspector-panel" class="absolute right-4 top-24 bottom-4 w-80 glass-panel rounded-2xl p-5 flex flex-col justify-between z-10 transition-all duration-300">
+        <div>
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-700/60">
+                <div>
+                    <span class="text-xs font-semibold text-amber-400 uppercase tracking-wider" id="inspector-subtitle">Mộc Việt Hotel</span>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2" id="inspector-title">
+                        Tầng 1 - Sảnh Đón Khách
+                    </h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 font-bold text-lg" id="inspector-badge">
+                    F1
+                </div>
+            </div>
+
+            <!-- Floor Overview Cards -->
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800">
+                    <div class="text-[11px] text-slate-400">Chức năng tầng</div>
+                    <div class="text-xs font-semibold text-amber-200 mt-0.5" id="inspector-type">Sảnh Lễ Tân / Lounge</div>
+                </div>
+                <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800">
+                    <div class="text-[11px] text-slate-400">Trạng thái phòng</div>
+                    <div class="text-xs font-bold text-emerald-400 mt-0.5" id="inspector-count">--</div>
+                </div>
+            </div>
+
+            <!-- Room Layout breakdown -->
+            <h4 class="text-xs font-bold uppercase text-slate-400 mb-2.5 flex items-center gap-1.5">
+                <i class="fa-solid fa-door-open text-amber-400"></i> Chi Tiết Chi Tiết Mặt Bằng
+            </h4>
+
+            <div class="space-y-2 max-h-[calc(100vh-395px)] overflow-y-auto pr-1" id="room-list-container">
+                <!-- Dynamically filled room items -->
+            </div>
+        </div>
+
+        <!-- Bottom Action CTA -->
+        <div class="pt-3 border-t border-slate-700/60">
+            <button id="btn-focus-floor" class="w-full py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-crosshairs text-amber-200"></i> Phóng To Quan Sát Tầng Này
+            </button>
+        </div>
+    </aside>
+
+    <!-- Bottom Instructions Overlay -->
+    <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 glass-panel px-5 py-2 rounded-full text-xs text-slate-300 pointer-events-none hidden lg:flex items-center gap-5">
+        <span><i class="fa-solid fa-mouse text-amber-400"></i> Chuột trái: Xoay 3D</span>
+        <span><i class="fa-solid fa-arrows-up-down-left-right text-blue-400"></i> Chuột phải: Di chuyển</span>
+        <span><i class="fa-solid fa-magnifying-glass text-emerald-400"></i> Cuộn chuột: Zoom</span>
+        <span><i class="fa-solid fa-water text-cyan-400"></i> Tầng 10: Hồ bơi vô cực</span>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // Data Structure for Mộc Việt Hotel (10 Floors, 60 Rooms strict match with table)
+        const floorsData = [
+            { level: 1, name: "Tầng Trệt - Sảnh Đón Khách", type: "Lễ tân • Cửa Kính Tự Động • Café", roomsCount: 0, desc: "Cửa kính tự động nhôm xám cao cấp, quầy tiếp tân mộc ấm áp, biển tên MỘC VIỆT HOTEL đèn LED trước lối vào chính." },
+            { 
+                level: 2, name: "Tầng 2 - Phòng Khách", type: "Single & Standard Room", roomsCount: 8, startNum: 201,
+                roomList: [
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" }
+                ]
+            },
+            { 
+                level: 3, name: "Tầng 3 - Phòng Khách", type: "Single & Standard Room", roomsCount: 8, startNum: 301,
+                roomList: [
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" }
+                ]
+            },
+            { 
+                level: 4, name: "Tầng 4 - Phòng Khách", type: "Single & Standard Room", roomsCount: 8, startNum: 401,
+                roomList: [
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Single Room", size: "25 m²", price: "950.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" }
+                ]
+            },
+            { 
+                level: 5, name: "Tầng 5 - Phòng Khách", type: "Standard & Superior Room", roomsCount: 8, startNum: 501,
+                roomList: [
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.500.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.500.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.500.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.500.000đ" }
+                ]
+            },
+            { 
+                level: 6, name: "Tầng 6 - Phòng Khách", type: "Standard & Superior Room", roomsCount: 8, startNum: 601,
+                roomList: [
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.200.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.500.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.500.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.500.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.500.000đ" }
+                ]
+            },
+            { 
+                level: 7, name: "Tầng 7 - Phòng Khách", type: "Standard & Superior Room", roomsCount: 8, startNum: 701,
+                roomList: [
+                    { name: "Standard Room", size: "30 m²", price: "1.250.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.250.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.250.000đ" },
+                    { name: "Standard Room", size: "30 m²", price: "1.250.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.550.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.550.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.550.000đ" },
+                    { name: "Superior Room", size: "35 m²", price: "1.550.000đ" }
+                ]
+            },
+            { 
+                level: 8, name: "Tầng 8 - Suite VIP", type: "Superior & Deluxe Room", roomsCount: 6, startNum: 801,
+                roomList: [
+                    { name: "Superior Room", size: "36 m²", price: "1.600.000đ" },
+                    { name: "Superior Room", size: "36 m²", price: "1.600.000đ" },
+                    { name: "Deluxe Room", size: "42 m²", price: "2.100.000đ" },
+                    { name: "Deluxe Room", size: "42 m²", price: "2.100.000đ" },
+                    { name: "Deluxe Room", size: "42 m²", price: "2.100.000đ" },
+                    { name: "Deluxe Room", size: "42 m²", price: "2.100.000đ" }
+                ]
+            },
+            { 
+                level: 9, name: "Tầng 9 - Suite & Family VIP", type: "Deluxe & Family Room", roomsCount: 6, startNum: 901,
+                roomList: [
+                    { name: "Deluxe Room", size: "45 m²", price: "2.200.000đ" },
+                    { name: "Deluxe Room", size: "45 m²", price: "2.200.000đ" },
+                    { name: "Family Room", size: "55 m²", price: "2.800.000đ" },
+                    { name: "Family Room", size: "55 m²", price: "2.800.000đ" },
+                    { name: "Family Room", size: "55 m²", price: "2.800.000đ" },
+                    { name: "Family Room", size: "55 m²", price: "2.800.000đ" }
+                ]
+            },
+            { level: 10, name: "Tầng 10 - Rooftop Pool & Bar", type: "Hồ Bơi Vô Cực • Sky Bar • Kỹ Thuật", roomsCount: 0, desc: "Hồ bơi vô cực viền kính trong suốt, ghế tắm nắng, dù che, Sky Bar ngoài trời & cụm máy kỹ thuật thang máy gọn gàng." }
+        ];
+
+        // Three.js Core Variables
+        let scene, camera, renderer, controls;
+        let buildingGroup, floorMeshes = [], ledLights = [], glassMeshes = [];
+        let raycaster, mouse;
+        let selectedFloorIndex = 0;
+        let isNightMode = true;
+        let isExploded = false;
+        let waterMesh;
+
+        // Hotel Architectural Dimensions
+        const TOTAL_FLOORS = 10;
+        const FLOOR_HEIGHT = 1.45;
+        const BUILDING_WIDTH = 8.2;
+        const BUILDING_DEPTH = 5.8;
+        const CORNER_RADIUS = 1.4;
+
+        // Init Scene
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(isNightMode ? 0x0a0f1d : 0x87ceeb);
+            scene.fog = new THREE.FogExp2(isNightMode ? 0x0a0f1d : 0xcce0ff, 0.01);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(24, 16, 26);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.15;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.02;
+            controls.minDistance = 9;
+            controls.maxDistance = 70;
+            controls.target.set(0, (TOTAL_FLOORS * FLOOR_HEIGHT) / 2, 0);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            setupLighting();
+            createEnvironment();
+
+            buildingGroup = new THREE.Group();
+            createMocVietHotelBuilding();
+            scene.add(buildingGroup);
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('pointerdown', onPointerDown);
+
+            animate();
+        }
+
+        let ambientLight, mainLight, warmPointLight;
+
+        function setupLighting() {
+            ambientLight = new THREE.AmbientLight(isNightMode ? 0x223355 : 0xffffff, isNightMode ? 0.7 : 0.95);
+            scene.add(ambientLight);
+
+            mainLight = new THREE.DirectionalLight(isNightMode ? 0xffb74d : 0xffffff, isNightMode ? 1.8 : 1.3);
+            mainLight.position.set(22, 30, 18);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 2048;
+            mainLight.shadow.mapSize.height = 2048;
+            mainLight.shadow.camera.near = 0.5;
+            mainLight.shadow.camera.far = 90;
+            const d = 25;
+            mainLight.shadow.camera.left = -d;
+            mainLight.shadow.camera.right = d;
+            mainLight.shadow.camera.top = d;
+            mainLight.shadow.camera.bottom = -d;
+            scene.add(mainLight);
+
+            warmPointLight = new THREE.PointLight(0xf59e0b, 2.5, 45);
+            warmPointLight.position.set(0, 7, 0);
+            scene.add(warmPointLight);
+        }
+
+        function createRoundedRectShape(width, height, radius) {
+            const shape = new THREE.Shape();
+            const x = -width / 2;
+            const y = -height / 2;
+            shape.moveTo(x + radius, y);
+            shape.lineTo(x + width - radius, y);
+            shape.quadraticCurveTo(x + width, y, x + width, y + radius);
+            shape.lineTo(x + width, y + height - radius);
+            shape.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            shape.lineTo(x + radius, y + height);
+            shape.quadraticCurveTo(x, y + height, x, y + height - radius);
+            shape.lineTo(x, y + radius);
+            shape.quadraticCurveTo(x, y, x + radius, y);
+            return shape;
+        }
+
+        function createEnvironment() {
+            const groundGeo = new THREE.PlaneGeometry(130, 130);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.85 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            const plazaGeo = createRoundedRectShape(BUILDING_WIDTH + 4.0, BUILDING_DEPTH + 4.0, CORNER_RADIUS + 0.6);
+            const plazaExtrude = new THREE.ExtrudeGeometry(plazaGeo, { depth: 0.15, bevelEnabled: false });
+            plazaExtrude.rotateX(-Math.PI / 2);
+            const plazaMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5 });
+            const plaza = new THREE.Mesh(plazaExtrude, plazaMat);
+            plaza.position.set(0, 0.02, 0);
+            plaza.receiveShadow = true;
+            scene.add(plaza);
+        }
+
+        // Main Hotel Building Construction
+        function createMocVietHotelBuilding() {
+            floorMeshes = [];
+            ledLights = [];
+            glassMeshes = [];
+
+            const floorShape = createRoundedRectShape(BUILDING_WIDTH, BUILDING_DEPTH, CORNER_RADIUS);
+
+            const slabMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.25 });
+            const glassMat = new THREE.MeshPhysicalMaterial({
+                color: 0x0f172a,
+                roughness: 0.1,
+                transmission: 0.75,
+                thickness: 0.4,
+                transparent: true,
+                opacity: 0.82
+            });
+            const warmCoreMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+            const ledStripMat = new THREE.MeshBasicMaterial({ color: 0xfcb316 });
+
+            for (let i = 0; i < TOTAL_FLOORS; i++) {
+                const floorGroup = new THREE.Group();
+                const posY = i * FLOOR_HEIGHT;
+                floorGroup.position.set(0, posY, 0);
+                floorGroup.userData = { floorIndex: i, basePosY: posY };
+
+                const isGround = (i === 0);
+                const isRoof = (i === TOTAL_FLOORS - 1);
+
+                // 1. Concrete Curved Slab
+                const slabGeom = new THREE.ExtrudeGeometry(floorShape, { depth: 0.25, bevelEnabled: false });
+                slabGeom.rotateX(-Math.PI / 2);
+                const slabMesh = new THREE.Mesh(slabGeom, slabMat);
+                slabMesh.castShadow = true;
+                slabMesh.receiveShadow = true;
+                floorGroup.add(slabMesh);
+
+                // 2. LED Curved Edge Strip
+                const ledEdgeGeo = new THREE.ExtrudeGeometry(
+                    createRoundedRectShape(BUILDING_WIDTH + 0.08, BUILDING_DEPTH + 0.08, CORNER_RADIUS + 0.04), 
+                    { depth: 0.07, bevelEnabled: false }
+                );
+                ledEdgeGeo.rotateX(-Math.PI / 2);
+                const ledMesh = new THREE.Mesh(ledEdgeGeo, ledStripMat);
+                ledMesh.position.y = 0.02;
+                floorGroup.add(ledMesh);
+                ledLights.push(ledMesh);
+
+                // 3. Main Glass Facade
+                const glassW = BUILDING_WIDTH - 0.35;
+                const glassD = BUILDING_DEPTH - 0.35;
+                const glassShape = createRoundedRectShape(glassW, glassD, CORNER_RADIUS - 0.2);
+
+                const glassGeom = new THREE.ExtrudeGeometry(glassShape, { depth: FLOOR_HEIGHT - 0.3, bevelEnabled: false });
+                glassGeom.rotateX(-Math.PI / 2);
+                const glassMesh = new THREE.Mesh(glassGeom, glassMat);
+                glassMesh.position.y = 0.25;
+                glassMesh.userData = { floorIndex: i };
+                floorGroup.add(glassMesh);
+                glassMeshes.push(glassMesh);
+
+                // Warm Interior Core Glow
+                const coreGeom = new THREE.ExtrudeGeometry(
+                    createRoundedRectShape(glassW - 0.5, glassD - 0.5, CORNER_RADIUS - 0.4),
+                    { depth: FLOOR_HEIGHT - 0.35, bevelEnabled: false }
+                );
+                coreGeom.rotateX(-Math.PI / 2);
+                const coreMesh = new THREE.Mesh(coreGeom, warmCoreMat);
+                coreMesh.position.y = 0.27;
+                floorGroup.add(coreMesh);
+
+                // 4. Detailed Doors & Windows on Guest Floors (Tầng 2 - 9)
+                if (!isGround && !isRoof) {
+                    createBalconySlidingDoors(floorGroup, glassW, glassD);
+                    createMocVietGreenery(floorGroup, BUILDING_WIDTH, BUILDING_DEPTH);
+                }
+
+                // 5. Tầng 1 (Trệt): Biển hiệu trước cửa + Cửa kính tự động
+                if (isGround) {
+                    createGroundLobbyAndEntrance(floorGroup);
+                }
+
+                // 6. Tầng 10 (Sân Thượng): Hồ bơi vô cực + Sky Lounge + Cụm kỹ thuật
+                if (isRoof) {
+                    createRooftopPoolAndLounge(floorGroup);
+                }
+
+                buildingGroup.add(floorGroup);
+                floorMeshes.push(floorGroup);
+            }
+        }
+
+        // Detailed Sliding Glass Doors & Window Frames for Rooms (Tầng 2 - 9)
+        function createBalconySlidingDoors(parentGroup, width, depth) {
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+            const curtainMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, transparent: true, opacity: 0.45 });
+
+            // Front & Back Sliding Windows (Cửa lùa mặt trước & sau)
+            const doorW = 1.1;
+            const doorH = 1.05;
+
+            const positions = [
+                { x: -2.3, z: depth / 2 + 0.02 },
+                { x: 0, z: depth / 2 + 0.02 },
+                { x: 2.3, z: depth / 2 + 0.02 },
+                { x: -2.3, z: -depth / 2 - 0.02 },
+                { x: 0, z: -depth / 2 - 0.02 },
+                { x: 2.3, z: -depth / 2 - 0.02 }
+            ];
+
+            positions.forEach(pos => {
+                // Outer Metal Frame
+                const frameGeo = new THREE.BoxGeometry(doorW, doorH, 0.05);
+                const frame = new THREE.Mesh(frameGeo, frameMat);
+                frame.position.set(pos.x, 0.8, pos.z);
+                parentGroup.add(frame);
+
+                // Interior Curtain Accent behind window
+                const curtainGeo = new THREE.PlaneGeometry(doorW - 0.1, doorH - 0.1);
+                const curtain = new THREE.Mesh(curtainGeo, curtainMat);
+                curtain.position.set(pos.x, 0.8, pos.z > 0 ? pos.z - 0.08 : pos.z + 0.08);
+                if (pos.z < 0) curtain.rotation.y = Math.PI;
+                parentGroup.add(curtain);
+            });
+        }
+
+        // Ground Floor: Automatic Glass Door & Front "MỘC VIỆT HOTEL" Neon Sign
+        function createGroundLobbyAndEntrance(parentGroup) {
+            const frontZ = BUILDING_DEPTH / 2 + 0.02;
+
+            // Automatic Glass Door Frame (Cửa kính tự động lối vào trệt)
+            const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.2 });
+            const glassPanelMat = new THREE.MeshPhysicalMaterial({ color: 0x64748b, transmission: 0.9, transparent: true, opacity: 0.6 });
+
+            const mainDoorFrameGeo = new THREE.BoxGeometry(2.4, 1.1, 0.08);
+            const mainDoorFrame = new THREE.Mesh(mainDoorFrameGeo, doorFrameMat);
+            mainDoorFrame.position.set(0, 0.75, frontZ + 0.05);
+            parentGroup.add(mainDoorFrame);
+
+            // Left & Right Sliding Glass Panels
+            const glassGlassGeo = new THREE.BoxGeometry(1.0, 0.95, 0.03);
+            const glassLeft = new THREE.Mesh(glassGlassGeo, glassPanelMat);
+            glassLeft.position.set(-0.55, 0.72, frontZ + 0.06);
+            parentGroup.add(glassLeft);
+
+            const glassRight = new THREE.Mesh(glassGlassGeo, glassPanelMat);
+            glassRight.position.set(0.55, 0.72, frontZ + 0.06);
+            parentGroup.add(glassRight);
+
+            // FRONT ENTRANCE NEON SIGNBOARD (Biển tên MỘC VIỆT HOTEL đặt trước cửa trệt)
+            const signPillarMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.4 }); // Gỗ mộc
+            const signPillar = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.5, 0.16), signPillarMat);
+            signPillar.position.set(0, 1.4, frontZ + 0.25);
+            parentGroup.add(signPillar);
+
+            // Glowing LED Letter Block "MỘC VIỆT HOTEL"
+            const neonTextMat = new THREE.MeshBasicMaterial({ color: 0xfcb316 }); // Vàng ấm LED
+            const neonText = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.3, 0.08), neonTextMat);
+            neonText.position.set(0, 1.4, frontZ + 0.32);
+            parentGroup.add(neonText);
+
+            // Entrance Canopy Awning (Mái che đón khách)
+            const canopyMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3 });
+            const canopy = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.08, 1.2), canopyMat);
+            canopy.position.set(0, 1.28, frontZ + 0.6);
+            parentGroup.add(canopy);
+        }
+
+        // Rooftop Level 10: Infinity Pool, Sun loungers & Compact Tech Equipment
+        function createRooftopPoolAndLounge(parentGroup) {
+            const topY = FLOOR_HEIGHT;
+
+            // Rooftop Floor Deck Slabs (Sàn gỗ ngoài trời)
+            const roofDeckGeo = new THREE.ExtrudeGeometry(
+                createRoundedRectShape(BUILDING_WIDTH, BUILDING_DEPTH, CORNER_RADIUS),
+                { depth: 0.2, bevelEnabled: false }
+            );
+            roofDeckGeo.rotateX(-Math.PI / 2);
+            const roofDeckMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.6 }); // Sàn giả gỗ outdoor
+            const roofDeck = new THREE.Mesh(roofDeckGeo, roofDeckMat);
+            roofDeck.position.y = topY;
+            parentGroup.add(roofDeck);
+
+            // 1. INFINITY POOL (Hồ bơi vô cực mặt nước xanh ngọc bích)
+            const poolW = 3.8;
+            const poolD = 2.4;
+            const poolDepth = 0.25;
+
+            // Pool Basin Frame
+            const poolFrameGeo = new THREE.BoxGeometry(poolW + 0.2, poolDepth + 0.05, poolD + 0.2);
+            const poolFrameMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.2 });
+            const poolFrame = new THREE.Mesh(poolFrameGeo, poolFrameMat);
+            poolFrame.position.set(-1.4, topY + 0.12, 0.2);
+            parentGroup.add(poolFrame);
+
+            // Water Body (Mặt nước hồ bơi vô cực)
+            const waterGeo = new THREE.BoxGeometry(poolW, 0.2, poolD);
+            const waterMat = new THREE.MeshPhysicalMaterial({
+                color: 0x06b6d4, // Cyan / Turquoise water
+                roughness: 0.05,
+                transmission: 0.85,
+                thickness: 0.8,
+                transparent: true,
+                opacity: 0.85
+            });
+            waterMesh = new THREE.Mesh(waterGeo, waterMat);
+            waterMesh.position.set(-1.4, topY + 0.16, 0.2);
+            parentGroup.add(waterMesh);
+
+            // Glass Wall for Infinity Edge (Thành hồ bơi kính vô cực)
+            const poolGlassGeo = new THREE.BoxGeometry(poolW, 0.35, 0.05);
+            const poolGlassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 });
+            const poolGlass = new THREE.Mesh(poolGlassGeo, poolGlassMat);
+            poolGlass.position.set(-1.4, topY + 0.3, 0.2 + poolD / 2);
+            parentGroup.add(poolGlass);
+
+            // 2. Sunbeds & Parasols (Ghế nằm tắm nắng & Dù che)
+            const sunbedMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 });
+            const umbrellaMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.4 }); // Dù màu cam Mộc Việt
+
+            for (let b = 0; b < 2; b++) {
+                // Sunbed
+                const bed = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 1.0), sunbedMat);
+                bed.position.set(1.1 + b * 0.8, topY + 0.25, -0.4);
+                parentGroup.add(bed);
+
+                // Parasol / Umbrella
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2), sunbedMat);
+                pole.position.set(1.1 + b * 0.8, topY + 0.7, -1.1);
+                parentGroup.add(pole);
+
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(0.65, 0.3, 8), umbrellaMat);
+                cone.position.set(1.1 + b * 0.8, topY + 1.25, -1.1);
+                parentGroup.add(cone);
+            }
+
+            // 3. Rooftop Glass Parapet Railing (Lan can kính)
+            const railGeo = new THREE.ExtrudeGeometry(
+                createRoundedRectShape(BUILDING_WIDTH - 0.1, BUILDING_DEPTH - 0.1, CORNER_RADIUS - 0.05),
+                { depth: 0.45, bevelEnabled: false }
+            );
+            railGeo.rotateX(-Math.PI / 2);
+            const railMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+            const railing = new THREE.Mesh(railGeo, railMat);
+            railing.position.y = topY + 0.2;
+            parentGroup.add(railing);
+
+            // 4. Compact Technical Area (Cụm kỹ thuật thang máy & bồn nước gọn gàng)
+            const techRoomGeo = new THREE.BoxGeometry(1.6, 1.1, 1.4);
+            const techRoomMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4 });
+            const techRoom = new THREE.Mesh(techRoomGeo, techRoomMat);
+            techRoom.position.set(2.6, topY + 0.75, 1.5);
+            parentGroup.add(techRoom);
+
+            // Stainless Steel Water Tanks (Bồn nước inox kỹ thuật)
+            const tankMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.85, roughness: 0.15 });
+            const tankGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.75, 16);
+            
+            const tank1 = new THREE.Mesh(tankGeo, tankMat);
+            tank1.position.set(2.2, topY + 1.4, 1.5);
+            parentGroup.add(tank1);
+
+            const tank2 = new THREE.Mesh(tankGeo, tankMat);
+            tank2.position.set(3.0, topY + 1.4, 1.5);
+            parentGroup.add(tank2);
+        }
+
+        function createMocVietGreenery(parentGroup, width, depth) {
+            const plantMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.9 });
+            const plantGeo = new THREE.DodecahedronGeometry(0.18, 1);
+
+            const corners = [
+                { x: width / 2 - 0.45, z: depth / 2 - 0.45 },
+                { x: -width / 2 + 0.45, z: depth / 2 - 0.45 },
+                { x: width / 2 - 0.45, z: -depth / 2 + 0.45 },
+                { x: -width / 2 + 0.45, z: -depth / 2 + 0.45 }
+            ];
+
+            corners.forEach(c => {
+                for (let k = 0; k < 3; k++) {
+                    const plant = new THREE.Mesh(plantGeo, plantMat);
+                    plant.position.set(c.x + (Math.random() - 0.5) * 0.35, 0.35, c.z + (Math.random() - 0.5) * 0.35);
+                    plant.scale.set(1 + Math.random() * 0.3, 1 + Math.random() * 0.3, 1 + Math.random() * 0.3);
+                    parentGroup.add(plant);
+                }
+            });
+        }
+
+        // Render Loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Gentle pool water animation
+            if (waterMesh) {
+                waterMesh.position.y = (TOTAL_FLOORS - 1) * FLOOR_HEIGHT + 0.16 + Math.sin(Date.now() * 0.002) * 0.015;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onPointerDown(event) {
+            if (event.target.closest('#inspector-panel') || event.target.closest('header') || event.target.closest('aside')) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(glassMeshes, false);
+
+            if (intersects.length > 0) {
+                const hitFloorIndex = intersects[0].object.userData.floorIndex;
+                selectFloor(hitFloorIndex);
+            }
+        }
+
+        function selectFloor(index) {
+            selectedFloorIndex = index;
+            const data = floorsData[index];
+
+            floorMeshes.forEach((group, idx) => {
+                const glassMesh = glassMeshes[idx];
+                if (idx === index) {
+                    glassMesh.material.color.setHex(0xd97706);
+                    glassMesh.material.opacity = 0.95;
+                } else {
+                    glassMesh.material.color.setHex(0x0f172a);
+                    glassMesh.material.opacity = 0.82;
+                }
+            });
+
+            document.getElementById('inspector-subtitle').innerText = `Thông tin Tầng ${data.level}`;
+            document.getElementById('inspector-title').innerText = data.name;
+            document.getElementById('inspector-badge').innerText = `F${data.level}`;
+            document.getElementById('inspector-type').innerText = data.type;
+
+            if (data.roomsCount > 0) {
+                document.getElementById('inspector-count').innerText = `${data.roomsCount} Phòng (${data.startNum} - ${data.startNum + data.roomsCount - 1})`;
+            } else {
+                document.getElementById('inspector-count').innerText = "Khu Vực Tiện Ích";
+            }
+
+            renderRoomsList(data);
+            updateSidebarActiveItem(index);
+        }
+
+        function renderRoomsList(floorData) {
+            const container = document.getElementById('room-list-container');
+            container.innerHTML = '';
+
+            if (floorData.roomsCount === 0) {
+                container.innerHTML = `
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-2">
+                        <div class="flex items-center gap-2 font-bold text-amber-400">
+                            <i class="fa-solid fa-circle-info"></i> ${floorData.name}
+                        </div>
+                        <p class="text-slate-400 leading-relaxed">${floorData.desc}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            for (let r = 0; r < floorData.roomsCount; r++) {
+                const roomNum = floorData.startNum + r;
+                const info = floorData.roomList ? floorData.roomList[r] : { name: "Standard Room", size: "30 m²", price: "1.200.000đ" };
+                const isOccupied = (r === 1 || r === 4);
+
+                const item = document.createElement('div');
+                item.className = `p-2.5 rounded-xl border text-xs flex justify-between items-center transition hover:border-amber-500/50 ${
+                    isOccupied ? 'bg-slate-900/40 border-slate-800/80 text-slate-400' : 'bg-slate-900/80 border-slate-800 text-slate-200'
+                }`;
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg ${isOccupied ? 'bg-slate-800 text-slate-500' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'} flex items-center justify-center font-bold text-xs">
+                            ${roomNum}
+                        </div>
+                        <div>
+                            <div class="font-semibold text-slate-100 text-[12px]">${info.name}</div>
+                            <div class="text-[10px] text-slate-400">${info.size} • Ban công ban đêm</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                            isOccupied ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        }">
+                            ${isOccupied ? 'Đang dùng' : 'Phòng trống'}
+                        </span>
+                        <div class="text-[10px] text-amber-400 font-medium mt-0.5">${info.price}</div>
+                    </div>
+                `;
+
+                container.appendChild(item);
+            }
+        }
+
+        function buildFloorSidebar() {
+            const container = document.getElementById('floor-list-container');
+            container.innerHTML = '';
+
+            floorsData.slice().reverse().forEach((data) => {
+                const idx = data.level - 1;
+                const btn = document.createElement('button');
+                btn.id = `btn-floor-${idx}`;
+                btn.className = `w-full p-2.5 rounded-xl text-xs flex items-center justify-between border transition text-left ${
+                    idx === selectedFloorIndex 
+                        ? 'bg-amber-500/20 border-amber-500/50 text-white font-semibold shadow-md' 
+                        : 'bg-slate-900/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/70'
+                }`;
+
+                btn.onclick = () => selectFloor(idx);
+
+                btn.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-6 h-6 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-bold text-amber-400">
+                            F${data.level}
+                        </span>
+                        <span class="truncate max-w-[110px]">${data.name}</span>
+                    </div>
+                    <span class="text-[10px] text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        ${data.roomsCount > 0 ? `${data.roomsCount} phòng` : 'Dịch vụ'}
+                    </span>
+                `;
+
+                container.appendChild(btn);
+            });
+        }
+
+        function updateSidebarActiveItem(activeIndex) {
+            floorsData.forEach((_, idx) => {
+                const btn = document.getElementById(`btn-floor-${idx}`);
+                if (!btn) return;
+                if (idx === activeIndex) {
+                    btn.className = `w-full p-2.5 rounded-xl text-xs flex items-center justify-between border transition text-left bg-amber-500/20 border-amber-500/50 text-white font-semibold shadow-md`;
+                } else {
+                    btn.className = `w-full p-2.5 rounded-xl text-xs flex items-center justify-between border transition text-left bg-slate-900/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/70`;
+                }
+            });
+        }
+
+        function toggleDayNight() {
+            isNightMode = !isNightMode;
+
+            scene.background = new THREE.Color(isNightMode ? 0x0a0f1d : 0x87ceeb);
+            scene.fog.color.setHex(isNightMode ? 0x0a0f1d : 0xcce0ff);
+
+            ambientLight.intensity = isNightMode ? 0.7 : 1.0;
+            mainLight.intensity = isNightMode ? 1.8 : 1.3;
+
+            ledLights.forEach(led => {
+                led.material.color.setHex(isNightMode ? 0xfcb316 : 0x94a3b8);
+            });
+
+            const btnText = document.getElementById('text-daynight');
+            const btnIcon = document.getElementById('icon-daynight');
+            if (isNightMode) {
+                btnText.innerText = 'Chế độ Đêm / LED Lung Linh';
+                btnIcon.className = 'fa-solid fa-moon text-amber-300';
+            } else {
+                btnText.innerText = 'Chế độ Ban Ngày Sunshine';
+                btnIcon.className = 'fa-solid fa-sun text-amber-400';
+            }
+        }
+
+        function toggleExplodedView() {
+            isExploded = !isExploded;
+            const gap = isExploded ? 1.3 : 0;
+
+            floorMeshes.forEach((mesh, idx) => {
+                const targetY = mesh.userData.basePosY + (idx * gap);
+                
+                let startY = mesh.position.y;
+                let startTime = performance.now();
+                let duration = 500;
+
+                function step(now) {
+                    let elapsed = now - startTime;
+                    let progress = Math.min(elapsed / duration, 1);
+                    let ease = 1 - Math.pow(1 - progress, 3);
+                    mesh.position.y = startY + (targetY - startY) * ease;
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    }
+                }
+                requestAnimationFrame(step);
+            });
+
+            const newTargetY = ((TOTAL_FLOORS * (FLOOR_HEIGHT + gap)) / 2);
+            controls.target.set(0, newTargetY, 0);
+
+            const btnExplode = document.getElementById('btn-explode');
+            const textExplode = document.getElementById('text-explode');
+            if (isExploded) {
+                btnExplode.classList.add('bg-amber-600/30', 'border-amber-500');
+                textExplode.innerText = 'Thu Gọn Tầng (Normal View)';
+            } else {
+                btnExplode.classList.remove('bg-amber-600/30', 'border-amber-500');
+                textExplode.innerText = 'Tách Dãn 10 Tầng (Exploded View)';
+            }
+        }
+
+        function focusOnSelectedFloor() {
+            const selectedMesh = floorMeshes[selectedFloorIndex];
+            if (!selectedMesh) return;
+
+            const targetY = selectedMesh.position.y + FLOOR_HEIGHT / 2;
+            let startTarget = controls.target.clone();
+            let endTarget = new THREE.Vector3(0, targetY, 0);
+
+            let startTime = performance.now();
+            function animateCamera() {
+                let elapsed = performance.now() - startTime;
+                let progress = Math.min(elapsed / 600, 1);
+                controls.target.lerpVectors(startTarget, endTarget, progress);
+                if (progress < 1) {
+                    requestAnimationFrame(animateCamera);
+                }
+            }
+            animateCamera();
+        }
+
+        function resetCamera() {
+            camera.position.set(24, 16, 26);
+            controls.target.set(0, (TOTAL_FLOORS * FLOOR_HEIGHT) / 2, 0);
+            if (isExploded) toggleExplodedView();
+            selectFloor(0);
+        }
+
+        window.onload = function() {
+            initScene();
+            buildFloorSidebar();
+            selectFloor(0);
+
+            document.getElementById('btn-daynight').addEventListener('click', toggleDayNight);
+            document.getElementById('btn-explode').addEventListener('click', toggleExplodedView);
+            document.getElementById('btn-reset').addEventListener('click', resetCamera);
+            document.getElementById('btn-focus-floor').addEventListener('click', focusOnSelectedFloor);
+        };
+    </script>
+</body>
+</html>
